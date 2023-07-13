@@ -44,6 +44,18 @@ int netlink::query(const char *device)
     return link_status;
 }
 
+int netlink::status(const char *device)
+{
+    int link_status = -1;
+    (void)nl_status(device, nl_linkstatus_query_cb, &link_status);
+    return link_status;
+}
+
+void netlink::query_ext(const char *device)
+{
+    (void)nl_query(device);
+}
+
 int netlink::nl_open(int family)
 {
     int fd;
@@ -170,6 +182,7 @@ int netlink::nl_status(const char *device, nl_status_cb cb, void *data)
 
     /* recvmsg思路：先尝试获取，读取实际大小但不清空接收缓存，如果本端recv buf不够大，重新malloc */
     len = recvmsg(fd_, &msg, MSG_PEEK | MSG_TRUNC);
+    std::cout<<"buf len real len is \t: \t"<<len<<std::endl;
     if(len < 1)
     {
         std::cout<<" netlink no msg"<<std::endl;
@@ -201,10 +214,24 @@ int netlink::nl_status(const char *device, nl_status_cb cb, void *data)
     nh = (struct nlmsghdr *)buf_;
     for( ; NLMSG_OK(nh, len); nh = NLMSG_NEXT(nh, len))
     {
+        std::cout<<"nlmsghdr->nlmsg_len \t: \t" <<nh->nlmsg_len<<"\n"
+                 <<"nlmsghdr->nlmsg_type \t: \t" <<nh->nlmsg_type<<"\n"
+                 <<"nlmsghdr->nlmsg_flags \t: \t" <<nh->nlmsg_flags<<"\n"
+                 <<"nlmsghdr->nlmsg_seq \t: \t" <<nh->nlmsg_seq<<"\n"
+                 <<"nlmsghdr->nlmsg_pid \t: \t" <<nh->nlmsg_pid<<std::endl<<std::endl;
+
         if(nh->nlmsg_type != RTM_NEWLINK)
             continue;
 
         info = (struct ifinfomsg *)NLMSG_DATA(nh);
+
+        std::cout<<"ifinfomsg->ifi_family \t: \t" <<info->ifi_family<<"\n"
+                 // <<"ifinfomsg->__ifi_pad \t: \t" <<info->__ifi_pad<<"\n"
+                 <<"ifinfomsg->ifi_type \t: \t" <<info->ifi_type<<"\n"
+                 <<"ifinfomsg->ifi_index \t: \t" <<info->ifi_index<<"\n"
+                 <<"ifinfomsg->ifi_flags \t: \t" <<info->ifi_flags<<"\n"
+                 <<"ifinfomsg->ifi_change \t: \t" <<info->ifi_change<<std::endl;
+
         if(index != info->ifi_index)
             continue;
 

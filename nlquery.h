@@ -19,6 +19,8 @@ public:
     ~netlink();
 
     int query(const char *device);
+    int status(const char *device);
+    void query_ext(const char *device);
 
 private:
     int nl_open(int family);

@@ -40,8 +40,13 @@ int main(int argc, char **argv)
     if(!dev_f)
         return 0;
 
-    link_status = nl.query(dev);
-    std::cout<<link_status<<std::endl;
+    nl.query_ext(dev);
+    do
+    {
+        link_status = nl.status(dev);
+        std::cout<<link_status<<std::endl<<std::endl;
+        // sleep(2);
+    } while (link_status != -1);
 
     return 0;
 }

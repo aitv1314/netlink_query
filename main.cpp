@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     do
     {
         link_status = nl.status(dev);
-        std::cout<<link_status<<std::endl<<std::endl;
+        nl.printstate();
         // sleep(2);
     } while (link_status != -1);
 

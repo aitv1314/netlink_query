@@ -34,20 +34,73 @@ netlink::~netlink()
     }
 }
 
+std::string netlink::enumstate2string(enum state sta)
+{
+    std::string str = "unknown";
+
+    switch (sta)
+    {
+        case netlink::UNKNOWN:
+            break;
+        case netlink::LINKUP:
+            str = "linkup";
+            break;
+        case netlink::LINKDOWN:
+            str = "linkdown";
+            break;
+        case netlink::MAX:
+        default :
+            str = "invalid";
+            break;
+    }
+    return str;
+}
+
+void netlink::setstate(int linkstatus)
+{
+    switch (linkstatus)
+    {
+        case 0:
+            state_ = LINKDOWN;
+            break;
+        case 1:
+            state_ = LINKUP;
+            break;
+        default:
+            state_ = UNKNOWN;
+            break;
+    }
+}
+
+void netlink::setprevstate(enum state linkstatus)
+{
+    prestate_ = linkstatus;
+}
+
+void netlink::printstate()
+{
+    std::cout<<"prev state is : "<<enumstate2string(prestate_)<<";  state now is : " <<enumstate2string(state_)<<std::endl<<std::endl;
+}
+
 int netlink::query(const char *device)
 {
     int link_status = -1;
     if(!device)
-        return ERROR_CODE_FAILED;
+        return link_status;
     if(nl_query(device))
+        setprevstate(state_);
         (void)nl_status(device, nl_linkstatus_query_cb, &link_status);
+        setstate(link_status);
     return link_status;
 }
 
 int netlink::status(const char *device)
 {
     int link_status = -1;
+
+    setprevstate(state_);
     (void)nl_status(device, nl_linkstatus_query_cb, &link_status);
+    setstate(link_status);
     return link_status;
 }
 
@@ -202,7 +255,7 @@ int netlink::nl_status(const char *device, nl_status_cb cb, void *data)
 
         iov.iov_base = buf_;
         iov.iov_len = buflen_;
-    }
+    } 
 
     /* 第二次获取-清空socket buf */
     len = recvmsg(fd_, &msg, 0);
@@ -230,7 +283,7 @@ int netlink::nl_status(const char *device, nl_status_cb cb, void *data)
                  <<"ifinfomsg->ifi_type \t: \t" <<info->ifi_type<<"\n"
                  <<"ifinfomsg->ifi_index \t: \t" <<info->ifi_index<<"\n"
                  <<"ifinfomsg->ifi_flags \t: \t" <<info->ifi_flags<<"\n"
-                 <<"ifinfomsg->ifi_change \t: \t" <<info->ifi_change<<std::endl;
+                 <<"ifinfomsg->ifi_change \t: \t" <<info->ifi_change<<std::endl<<std::endl;
 
         if(index != info->ifi_index)
             continue;

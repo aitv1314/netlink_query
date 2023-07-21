@@ -1,6 +1,8 @@
 #ifndef NL_QUERY_H
 #define NL_QUERY_H
 
+#include <string.h>
+
 #define ERROR_CODE_FAILED                       -1
 #define ERROR_CODE_SUCCESS                      0
 
@@ -18,15 +20,27 @@ public:
     netlink();
     ~netlink();
 
-    int query(const char *device);
-    int status(const char *device);
-    void query_ext(const char *device);
+    enum state {
+        UNKNOWN,
+        LINKUP,
+        LINKDOWN,
+        MAX
+    }state_{UNKNOWN}, prestate_{UNKNOWN};
 
+    int query(const char *device); // 等于 status + query_ext
+    int status(const char *device); // 等待响应
+    void query_ext(const char *device); // 发请求
+
+    void printstate();
 private:
     int nl_open(int family);
     void nl_close();
     int nl_query(const char *device);
     int nl_status(const char *device, nl_status_cb cb, void *data);
+
+    std::string enumstate2string(enum state sta);
+    void setstate(int linkstatus);
+    void setprevstate(enum state linkstatus);
 };
 
 #endif

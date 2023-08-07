@@ -119,7 +119,12 @@ int netlink::nl_open(int family)
 
     memset(&sa, 0, sizeof(sa));
     sa.nl_family = AF_NETLINK;
-    sa.nl_groups = RTNLGRP_LINK; /* RTnetlink multicast groups */
+    sa.nl_groups = RTNLGRP_LINK; /* RTnetlink multicast groups  RTNLGRP_LINK*/
+    sa.nl_pid = getpid(); // local port id, = getpid()
+    // 端口up/down变化时，内核会继续向 port 0 推送送消息
+    // nl_pid指定为本进程或者线程id时，只会收到本次查询的结果
+    // nl_pid设为0时，除本次查询外，会收到所有端口up/down消息
+    std::cout<<getpid()<<std::endl;
 
     fd = socket(AF_NETLINK, SOCK_RAW, family);
     if (0 > fd)
@@ -169,18 +174,20 @@ int netlink::nl_query(const char *device)
         struct ifinfomsg ifm;
     } __attribute__((packed)) req;
 
-    memset(&sa, 0, sizeof(sockaddr_nl));
+    memset(&sa, 0, sizeof(struct sockaddr_nl));
     sa.nl_family = AF_NETLINK;
-
+    // sa.nl_groups = 0;
+    sa.nl_pid = 0;  // peer port(0 means kernel) ID
     /* req嵌入到iov中，iov和sa嵌入到msg中 */
 
     memset(&req, 0, sizeof(req));
-    req.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(ifinfomsg));      /* 整个netlink消息的长度（包含消息头） */
-    req.hdr.nlmsg_type = RTM_GETLINK;                         /* Types of messages */
-    req.hdr.nlmsg_flags = NLM_F_REQUEST;                      /* 消息标记，它们用以表示消息的类型 */
-    req.hdr.nlmsg_seq = 1;                                    /* 消息序列号，用以将消息排队，有些类似TCP协议中的序号（不完全一样），但是netlink的这个字段是可选的，不强制使用*/
-    req.hdr.nlmsg_pid = 0;                                    /* 发送端口的ID号，对于内核来说该值就是0，对于用户进程来说就是其socket所绑定的ID号 */
-    req.ifm.ifi_family = AF_UNSPEC;                           /* 协议族 */
+    req.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg)); /* 整个netlink消息的长度（包含消息头） */
+    req.hdr.nlmsg_type = RTM_GETLINK;                               /* Types of messages */
+    req.hdr.nlmsg_flags = NLM_F_REQUEST; /* 消息标记，它们用以表示消息的类型 */
+    req.hdr.nlmsg_seq = 1; /* 消息序列号，用以将消息排队，有些类似TCP协议中的序号（不完全一样），但是netlink的这个字段是可选的，不强制使用*/
+    req.hdr.nlmsg_pid = getpid(); /* 发送端口的ID号，对于内核来说该值就是0，对于用户进程来说就是其socket所绑定的ID号 local*/
+    req.ifm.ifi_family = AF_UNSPEC; /* 协议族 */
+
     req.ifm.ifi_index = if_nametoindex(device ? device : ""); /* 接口序号 */
     req.ifm.ifi_change = 0xffffffff;                          /* IFF_* 格式 */
 
@@ -197,7 +204,7 @@ int netlink::nl_query(const char *device)
     cnt = sendmsg(fd_, &msg, 0);
     if (0 > cnt)
     {
-        std::cout << "send msg error!" << std::endl;
+        std::cout<<"send msg error, cnt = "<<cnt<<" ,errno = "<<errno<<std::endl;
         return ERROR_CODE_FAILED;
     }
     return cnt;
